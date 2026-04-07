@@ -3,6 +3,10 @@
 import os, json, re
 from datetime import datetime, timezone
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,13 +16,20 @@ from openai import OpenAI
 from app.models import User, Product, Listing, init_db, get_engine
 from app.auth import hash_password, verify_password, create_token, decode_token
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
+AI_MODEL = os.getenv("AI_MODEL", "gpt-5-mini")
+def get_openai_client():
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 AI_MODEL = os.getenv("AI_MODEL", "gpt-4o-mini")
 
 app = FastAPI(title="SellerPilot", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5177", "http://localhost:3000", "http://127.0.0.1:5177"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-DATABASE_URL = "sqlite:///./sellerpilot.db"
+from app.stripe_billing import router as stripe_router
+app.include_router(stripe_router)
+app.add_middleware(CORSMiddleware, allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(",") if os.getenv("ALLOWED_ORIGINS") else ["*"])
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 engine = get_engine(DATABASE_URL); init_db(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
@@ -145,7 +156,7 @@ Style: {style}
 Return JSON:
 {{"title": "SEO-optimized title (max 200 chars)", "bullets": ["5 benefit-focused bullet points"], "description": "compelling 150-word description", "tags": ["10 relevant search tags"], "price_cents": suggested_retail_price_in_cents}}"""
 
-    if not client.api_key:
+    if not os.getenv("OPENAI_API_KEY"):
         margin = max(int(product.cost_cents * 2.5), product.cost_cents + 1500)
         return {
             "title": f"[Optimized] {product.title} — Premium {product.category or 'Product'}",
@@ -157,7 +168,7 @@ Return JSON:
         }
 
     try:
-        response = client.chat.completions.create(model=AI_MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=1000, temperature=0.7)
+        response = get_openai_client().chat.completions.create(model=AI_MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=1000, temperature=0.7)
         content = response.choices[0].message.content or ""
         if "```" in content:
             content = content.split("```json")[-1].split("```")[0] if "```json" in content else content.split("```")[1].split("```")[0]

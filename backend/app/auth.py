@@ -1,3 +1,4 @@
+import os
 """SellerPilot — Auth"""
 import hashlib, hmac
 from datetime import datetime, timedelta, timezone
@@ -5,7 +6,7 @@ from jose import jwt, JWTError
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-SECRET_KEY = "sellerpilot-dev-secret"
+SECRET_KEY = os.getenv("SECRET_KEY", "founder-toolkit-shared-secret-2026")
 ALGORITHM = "HS256"
 security = HTTPBearer()
 

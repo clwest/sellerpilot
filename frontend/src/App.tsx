@@ -212,8 +212,8 @@ function ProductDetailPage({ product, onOptimize, onBack, loading }: { product: 
 function AuthPage({ mode, onLogin, onRegister, onSwitch }: {
   mode: 'login' | 'register'; onLogin?: (e: string, p: string) => Promise<void>; onRegister?: (e: string, p: string, n: string) => Promise<void>; onSwitch: () => void
 }) {
-  const [email, setEmail] = useState(mode === 'login' ? 'demo@sellerpilot.dev' : '')
-  const [password, setPassword] = useState(mode === 'login' ? 'demo123' : '')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [name, setName] = useState(''); const [error, setError] = useState(''); const [ld, setLd] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -232,7 +232,7 @@ function AuthPage({ mode, onLogin, onRegister, onSwitch }: {
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full px-3 py-2 bg-[#0a0a0f] border border-gray-800 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500" />
           <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full px-3 py-2 bg-[#0a0a0f] border border-gray-800 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500" />
           {error && <p className="text-sm text-red-400">{error}</p>}
-          {mode === 'login' && <p className="text-xs text-gray-500">Demo: demo@sellerpilot.dev / demo123</p>}
+          {/* Demo hint removed */}
           <button type="submit" disabled={ld} className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition disabled:opacity-50">{ld ? '...' : mode === 'login' ? 'Sign In' : 'Create Account'}</button>
         </form>
         <p className="text-sm text-gray-500 text-center mt-4">{mode === 'login' ? "No account? " : 'Have an account? '}<button onClick={onSwitch} className="text-cyan-400 hover:text-cyan-300">{mode === 'login' ? 'Sign Up' : 'Sign In'}</button></p>
