@@ -1,0 +1,74 @@
+# SellerPilot — prod-like fleet compose
+#
+# Pattern reference: /Users/donkeyking/development/infra/README.md
+
+services:
+  sellerpilot_postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sellerpilot_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sellerpilot}
+      POSTGRES_USER: ${POSTGRES_USER:-sellerpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sellerpilot}
+    volumes:
+      - sellerpilot_postgres_data:/var/lib/postgresql/data
+    networks:
+      - fleet-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sellerpilot} -d ${POSTGRES_DB:-sellerpilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  sellerpilot_api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sellerpilot_api
+    restart: unless-stopped
+    depends_on:
+      sellerpilot_postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sellerpilot}:${POSTGRES_PASSWORD:-sellerpilot}@sellerpilot_postgres:5432/${POSTGRES_DB:-sellerpilot}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-5-mini}
+      SECRET_KEY: ${SECRET_KEY:-dev-only-rotate-me}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5177}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5177}
+      PORT: "8005"
+    ports:
+      - "8005:8005"
+    networks:
+      - fleet-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://localhost:8005/api/health\",timeout=2).status==200 else 1)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  sellerpilot_web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8005/api}
+    container_name: sellerpilot_web
+    restart: unless-stopped
+    depends_on:
+      - sellerpilot_api
+    ports:
+      - "5177:80"
+    networks:
+      - fleet-net
+
+volumes:
+  sellerpilot_postgres_data:
+    name: sellerpilot_postgres_data
+
+networks:
+  fleet-net:
+    external: true
+    name: fleet-net

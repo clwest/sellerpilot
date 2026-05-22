@@ -1,9 +1,14 @@
 """SellerPilot — Seed demo data"""
+import os
+from dotenv import load_dotenv
+load_dotenv()
 from sqlalchemy.orm import sessionmaker
 from app.models import User, Product, init_db, get_engine
 from app.auth import hash_password
 
-DATABASE_URL = "sqlite:///./sellerpilot.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sellerpilot.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 PRODUCTS = [
     {"title": "Bamboo Wireless Charging Pad", "description": "Eco-friendly wireless charger made from sustainable bamboo. Qi-compatible, 10W fast charge.", "category": "Electronics", "cost_cents": 800, "marketplace": "amazon"},

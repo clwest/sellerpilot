@@ -1,0 +1,27 @@
+# SellerPilot — dev overlay
+
+services:
+  sellerpilot_api:
+    command: >
+      sh -c "python -m app.seed && uvicorn app.main:app
+             --host 0.0.0.0 --port 8005 --reload --reload-dir /app"
+    volumes:
+      - ./backend:/app
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+  sellerpilot_web:
+    image: node:20-slim
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5177"
+    volumes:
+      - ./frontend:/app
+      - sellerpilot_node_modules:/app/node_modules
+    ports:
+      - "5177:5177"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8005/api}
+
+volumes:
+  sellerpilot_node_modules:
+    name: sellerpilot_node_modules
