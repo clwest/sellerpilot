@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-sellerpilot}
       POSTGRES_USER: ${POSTGRES_USER:-sellerpilot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sellerpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
     volumes:
       - sellerpilot_postgres_data:/var/lib/postgresql/data
     networks:
@@ -31,7 +31,7 @@ services:
       sellerpilot_postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sellerpilot}:${POSTGRES_PASSWORD:-sellerpilot}@sellerpilot_postgres:5432/${POSTGRES_DB:-sellerpilot}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sellerpilot}:${POSTGRES_PASSWORD:-change-me-in-production}@sellerpilot_postgres:5432/${POSTGRES_DB:-sellerpilot}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-gpt-5-mini}
       SECRET_KEY: ${SECRET_KEY:-dev-only-rotate-me}
