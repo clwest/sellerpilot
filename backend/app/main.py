@@ -44,6 +44,32 @@ class GenerateListingRequest(BaseModel): variant_label: str = "Primary"; style: 
 def health():
     return {"status": "healthy", "service": "SellerPilot"}
 
+
+# ── Brain bridge ───────────────────────────────────────────────────────────
+# Proxies a freeform question to unified-donkey-betz's Personal Assistant
+# (Rigby) and returns the deliberated answer. See app/brain_client.py.
+
+class BrainAskRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+
+@app.post("/api/brain/ask")
+def brain_ask(req: BrainAskRequest, payload: dict = Depends(decode_token)):
+    from app.brain_client import ask
+    if not req.message.strip():
+        raise HTTPException(400, "message is required")
+    result = ask(
+        req.message,
+        conversation_id=req.conversation_id,
+        workspace="sellerpilot",
+        user_id=payload.get("sub"),
+    )
+    if not result.get("ok"):
+        raise HTTPException(502, result.get("error", "brain unreachable"))
+    return result
+
+
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
     db = SessionLocal()

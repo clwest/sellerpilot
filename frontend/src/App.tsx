@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ShoppingBag, Plus, ArrowLeft, LogIn, LogOut, Sparkles, DollarSign, ChevronRight, BarChart3, Copy } from 'lucide-react'
+import { ShoppingBag, Plus, ArrowLeft, LogIn, LogOut, Sparkles, DollarSign, ChevronRight, BarChart3, Copy, Send } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8005/api'
 
@@ -7,7 +7,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:8005/api'
 interface Product { id: string; title: string; description: string; category: string; cost_cents: number; marketplace: string; listing_count: number; listings?: ListingItem[] }
 interface ListingItem { id: string; variant_label: string; title_optimized: string; bullets: string[]; description_optimized: string; tags: string[]; suggested_price_cents: number; score: number }
 interface AuthUser { id: string; email: string; name: string }
-type View = 'home' | 'products' | 'product-detail' | 'login' | 'register'
+type View = 'home' | 'products' | 'product-detail' | 'login' | 'register' | 'brain'
 
 function authHeaders(token: string) { return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
 
@@ -70,6 +70,7 @@ export default function App() {
             {token && user ? (
               <>
                 <button onClick={() => setView('products')} className="text-sm text-gray-400 hover:text-white transition">Products</button>
+                <button onClick={() => setView('brain')} className="text-sm text-gray-400 hover:text-white transition" title="Ask Rigby (u-d-b PA)">Brain</button>
                 <span className="text-sm text-gray-500">{user.name}</span>
                 <button onClick={logout} className="text-gray-500 hover:text-red-400"><LogOut size={16} /></button>
               </>
@@ -86,6 +87,7 @@ export default function App() {
         {view === 'product-detail' && activeProduct && <ProductDetailPage product={activeProduct} onOptimize={optimizeListing} onBack={() => setView('products')} loading={loading} />}
         {view === 'login' && <AuthPage mode="login" onLogin={handleLogin} onSwitch={() => setView('register')} />}
         {view === 'register' && <AuthPage mode="register" onRegister={handleRegister} onSwitch={() => setView('login')} />}
+        {view === 'brain' && <BrainPage token={token} onLogin={() => setView('login')} />}
       </main>
     </div>
   )
@@ -237,6 +239,71 @@ function AuthPage({ mode, onLogin, onRegister, onSwitch }: {
         </form>
         <p className="text-sm text-gray-500 text-center mt-4">{mode === 'login' ? "No account? " : 'Have an account? '}<button onClick={onSwitch} className="text-cyan-400 hover:text-cyan-300">{mode === 'login' ? 'Sign Up' : 'Sign In'}</button></p>
       </div>
+    </div>
+  )
+}
+
+// ── Brain bridge page ─────────────────────────────────────────────────────
+function BrainPage({ token, onLogin }: { token: string | null; onLogin: () => void }) {
+  const [message, setMessage] = useState('')
+  const [answer, setAnswer] = useState<string | null>(null)
+  const [traceId, setTraceId] = useState<string | null>(null)
+  const [latency, setLatency] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function ask() {
+    if (!token) { onLogin(); return }
+    if (!message.trim()) return
+    setLoading(true); setAnswer(null); setError(null); setTraceId(null); setLatency(null)
+    try {
+      const r = await fetch(`${API}/brain/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message }),
+      })
+      const d = await r.json()
+      if (!r.ok) setError(typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail || d))
+      else {
+        setAnswer(d.answer || '(no answer field returned)')
+        setTraceId(d.trace_id || null); setLatency(d.latency_ms ?? null)
+      }
+    } catch (e: any) { setError(e.message || 'request failed') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <h1 className="text-3xl font-bold text-white mb-2">Brain</h1>
+      <p className="text-gray-400 mb-6">
+        Ask Rigby (the u-d-b Personal Assistant) anything. SellerPilot proxies your question through the fleet brain bridge and returns her deliberated response.
+      </p>
+      {!token && (
+        <div className="mb-4 p-3 rounded-lg bg-yellow-900/30 border border-yellow-700/50 text-yellow-200 text-sm">Sign in first — the bridge requires an authenticated session.</div>
+      )}
+      <textarea value={message} onChange={e => setMessage(e.target.value)}
+        placeholder="Ask anything — Rigby has u-d-b's full agent network behind her."
+        className="w-full h-32 px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 resize-none focus:border-cyan-500 focus:outline-none" />
+      <button onClick={ask} disabled={loading || !message.trim()}
+        className="mt-3 px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-white font-medium transition flex items-center gap-2">
+        <Send size={16} />{loading ? 'Thinking...' : 'Ask Rigby'}
+      </button>
+      {error && (
+        <div className="mt-6 p-4 rounded-lg bg-red-900/30 border border-red-700/50 text-red-200 text-sm whitespace-pre-wrap">
+          <div className="font-medium text-red-300 mb-1">Brain unreachable</div>{error}
+        </div>
+      )}
+      {answer && (
+        <div className="mt-6">
+          <div className="p-4 rounded-lg bg-gray-900 border border-gray-800 text-gray-100 whitespace-pre-wrap">{answer}</div>
+          {(traceId || latency !== null) && (
+            <div className="mt-2 text-xs text-gray-500 flex gap-4">
+              {traceId && <span>trace: {traceId}</span>}
+              {latency !== null && <span>latency: {latency}ms</span>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
